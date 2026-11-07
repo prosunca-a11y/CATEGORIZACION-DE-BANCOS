@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Permisos para la colección de empresas y sus subcolecciones
+    match /empresas/{empresaId} {
+      allow read, write: if isSignedIn() && isValidId(empresaId);
+
+      match /transacciones/{transaccionId} {
+        allow read, write: if isSignedIn() && isValidId(empresaId) && isValidId(transaccionId);
+      }
+
+      match /conciliaciones/{mesId} {
+        allow read, write: if isSignedIn() && isValidId(empresaId) && isValidId(mesId);
+      }
+
+      match /reglas/{reglaId} {
+        allow read, write: if isSignedIn() && isValidId(empresaId) && isValidId(reglaId);
+      }
+    }
+  }
+}

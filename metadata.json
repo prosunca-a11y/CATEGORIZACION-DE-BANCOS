@@ -1,0 +1,6 @@
+{
+  "name": "Clasificador de Estados de Cuenta · Multibanco y multiempresa",
+  "description": "Carga estados de cuenta (PDF, Excel o CSV). Cada operación se clasifica por su descripción, con el soporte que conviene tener a mano ante una fiscalización del SENIAT.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

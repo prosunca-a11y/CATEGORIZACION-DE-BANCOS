@@ -1,0 +1,89 @@
+{
+  "entities": {
+    "Transaccion": {
+      "title": "Transacción Bancaria",
+      "description": "Movimiento de ingreso o egreso reflejado en el estado de cuenta bancario",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "fecha": { "type": "string", "maxLength": 10, "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "descripcion": { "type": "string", "maxLength": 500 },
+        "referencia": { "type": "string", "maxLength": 100 },
+        "monto": { "type": "number" },
+        "saldo": { "type": "number" },
+        "tipo": { "type": "string", "enum": ["I", "E"] },
+        "categoria": { "type": "string", "maxLength": 200 },
+        "grupo": {
+          "type": "string",
+          "enum": [
+            "VENTAS_OPERATIVAS",
+            "INGRESOS_NO_VENTAS",
+            "TRANSFERENCIAS_INTERNAS",
+            "PAGO_PROVEEDORES",
+            "IMPUESTOS_TRIBUTOS",
+            "NOMINA_PERSONAL",
+            "PARAFISCALES_SEG_SOCIAL",
+            "SERVICIOS_PUBLICOS",
+            "COMISIONES_BANCARIAS",
+            "OTROS_GASTOS",
+            "OTROS_INGRESOS"
+          ]
+        },
+        "soporteRequerido": { "type": "string", "maxLength": 500 },
+        "soporteEstado": { "type": "string", "enum": ["ubicado", "pendiente", "no_requerido"] },
+        "soporteDoc": { "type": "string", "maxLength": 100 },
+        "empresa": { "type": "string", "maxLength": 200 },
+        "banco": { "type": "string", "maxLength": 200 },
+        "archivoOrigen": { "type": "string", "maxLength": 200 },
+        "esManual": { "type": "boolean" },
+        "reglaAplicada": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "fecha", "descripcion", "monto", "tipo", "categoria", "grupo", "empresa", "banco"]
+    },
+    "ConciliacionMes": {
+      "title": "Conciliación Mes SENIAT",
+      "description": "Registro de ventas declaradas en la planilla IVA Forma 99030",
+      "type": "object",
+      "properties": {
+        "mes": { "type": "string", "maxLength": 7, "pattern": "^[0-9]{4}-[0-9]{2}$" },
+        "ventasDeclaradasSeniat": { "type": "number" },
+        "ivaDebitoFiscal": { "type": "number" },
+        "observaciones": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["mes", "ventasDeclaradasSeniat"]
+    },
+    "ReglaInteligente": {
+      "title": "Regla Inteligente de Etiquetado",
+      "description": "Patrón automático de categorización por palabras clave",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "nombre": { "type": "string", "maxLength": 200 },
+        "tipo": { "type": "string", "enum": ["I", "E", "AMBOS"] },
+        "patron": { "type": "string", "maxLength": 500 },
+        "categoria": { "type": "string", "maxLength": 200 },
+        "grupo": { "type": "string" },
+        "soporteSugerido": { "type": "string", "maxLength": 500 },
+        "esSistema": { "type": "boolean" },
+        "activa": { "type": "boolean" }
+      },
+      "required": ["id", "nombre", "tipo", "patron", "categoria", "grupo"]
+    }
+  },
+  "firestore": {
+    "/empresas/{empresaId}/transacciones/{transaccionId}": {
+      "schema": "Transaccion",
+      "description": "Colección de operaciones bancarias categorizadas por empresa"
+    },
+    "/empresas/{empresaId}/conciliaciones/{mesId}": {
+      "schema": "ConciliacionMes",
+      "description": "Colección de declaraciones SENIAT por mes"
+    },
+    "/empresas/{empresaId}/reglas/{reglaId}": {
+      "schema": "ReglaInteligente",
+      "description": "Colección de reglas de etiquetado inteligente"
+    }
+  }
+}

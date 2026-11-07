@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Telcel Brand Palette from user image */
+  --color-telcel-blue: #0022F5;
+  --color-telcel-blue-hover: #0018B8;
+  --color-telcel-green: #00B32C;
+  --color-telcel-red: #E52229;
+  --color-telcel-magenta: #E6007E;
+  --color-telcel-orange: #F57C00;
+  --color-telcel-yellow: #F5CD6D;
+  --color-telcel-violet: #7E00F5;
+  --color-telcel-brown: #6E4029;
+  --color-telcel-gray: #A3AAB8;
+  --color-telcel-dark: #181C24;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #F8FAFC;
+  color: #0F172A;
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+  padding: 0;
+}
+
+/* Tabular figures for all financial data */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom scrollbars for data tables */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

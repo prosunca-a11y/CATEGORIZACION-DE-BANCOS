@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Clasificador de Estados de Cuenta · Soportes SENIAT</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{--bg:#f4f6fb;--cd:#fff;--tx:#1b2333;--mu:#667085;--bd:#e1e6ef;--ac:#1f3864;--acx:#fff;--in:#117a3d;--eg:#b42318;--wn:#fff4d6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0f141c;--cd:#171e29;--tx:#e8ecf3;--mu:#98a2b3;--bd:#2a3342;--ac:#7aa2ff;--acx:#0f141c;--in:#4ade80;--eg:#f87171;--wn:#3a3115}}
+:root[data-theme=dark]{--bg:#0f141c;--cd:#171e29;--tx:#e8ecf3;--mu:#98a2b3;--bd:#2a3342;--ac:#7aa2ff;--acx:#0f141c;--in:#4ade80;--eg:#f87171;--wn:#3a3115}
+html,body{height:auto}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 Arial,Helvetica,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}h1{font-size:20px;margin:4px 0}h2{font-size:15px;margin:0 0 8px}
+.sub{color:var(--mu);margin:0 0 14px}.card{background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:14px}
+#drop{border:2px dashed var(--bd);border-radius:10px;padding:22px;text-align:center;cursor:pointer;color:var(--mu)}#drop.on{border-color:var(--ac);color:var(--tx)}
+button,select,input{font:inherit;color:var(--tx);background:var(--cd);border:1px solid var(--bd);border-radius:7px;padding:6px 10px}
+button.p{background:var(--ac);color:var(--acx);border-color:var(--ac);cursor:pointer}button:disabled{opacity:.5}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}.sp{flex:1}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}.k{background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:10px}.k b{display:block;font-size:17px}.k span{color:var(--mu);font-size:12px}
+.w{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:640px}th,td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}th{background:var(--ac);color:var(--acx);position:sticky;top:0;font-size:12px}
+td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}tr.c{cursor:pointer}tr.c:hover td{background:var(--bg)}tr.t td{font-weight:700;background:var(--bg)}tr.gh td{background:var(--bg);border-top:2px solid var(--ac);padding-top:10px}
+.i{color:var(--in)}.e{color:var(--eg)}.tag{background:var(--wn);border-radius:5px;padding:1px 6px;font-size:11px;margin-left:6px}.sm{font-size:12px;color:var(--mu)}
+#log{font-size:12px;color:var(--mu);margin-top:8px}.cat{width:100%;min-width:190px}
+</style></head><body><main>
+<h1>Clasificador de Estados de Cuenta · Multibanco y multiempresa</h1>
+<p class="sub">Carga estados de cuenta (PDF, Excel o CSV). Cada operación se clasifica por su descripción, con el soporte que conviene tener a mano ante una fiscalización del SENIAT. Los archivos se procesan en tu navegador y no se envían a ningún servidor.</p>
+<div class="card"><div class="bar"><label>Empresa <select id="emp"></select></label><input id="ne" placeholder="Nueva empresa (nombre o RIF)" size="26"><button id="ae">Agregar empresa</button><label>Banco <select id="bk"></select></label></div><div id="drop">Arrastra aquí los estados de cuenta o toca para elegirlos<br><span class="sm">.xlsx · .xls · .csv · .pdf — puedes cargar varios meses y bancos a la vez</span></div>
+<input id="fi" type="file" multiple accept=".xlsx,.xls,.csv,.pdf" hidden><div id="log"></div></div>
+<div id="app" hidden>
+<div class="bar"><label>Empresa <select id="fe"></select></label><label>Banco <select id="fb"></select></label><label>Mes <select id="mes"></select></label><span class="sp"></span><button id="ex" class="p">Exportar a Excel</button><button id="cl">Limpiar todo</button></div>
+<div class="kpis" id="kp"></div>
+<div class="card"><h2>Ingresos vs. egresos por mes (Bs)</h2><div class="w" id="im"></div></div>
+<div class="card"><h2>Resumen por empresa y banco</h2><div class="w" id="eb"></div></div>
+<div class="card"><h2>Ingresos por categoría</h2><div class="w" id="ti"></div></div>
+<div class="card"><h2>Egresos por categoría</h2><div class="w" id="te"></div></div>
+<div class="card"><div class="bar"><h2 style="margin:0">Detalle por categoría · subtotales a justificar</h2><span id="fl" class="sm"></span><span class="sp"></span><button id="nf">Quitar filtro</button></div>
+<p class="sm" style="margin:0 0 8px">Puedes cambiar la categoría de cualquier operación (escribe una nueva o elige una existente); los resúmenes se recalculan. Las categorías «Otros…» se crearon automáticamente por no estar en la lista.</p>
+<div class="w"><table id="td"></table></div></div></div>
+<datalist id="dl"></datalist>
+</main>
+<script>
+const $=s=>document.querySelector(s),fmt=n=>n.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2}),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const SUP0='Identificar el soporte (contrato, factura u orden de pago) que respalde la operación';
+// [tipo, categoría, regex (sobre descripción en MAYÚSCULAS sin tildes), soporte]
+const R=[
+['E','Transferencias entre cuentas propias',/CUENTAS PROPIAS|TRASPASO|ENTRE CUENTAS|TRANSF.*INTERNA/,'Conciliar contra el estado de cuenta de la otra cuenta (debe existir el ingreso correspondiente)'],
+['I','Transferencias entre cuentas propias',/CUENTAS PROPIAS|TRASPASO|ENTRE CUENTAS|TRANSF.*INTERNA/,'Conciliar contra el estado de cuenta de la otra cuenta (debe existir el egreso correspondiente)'],
+['E','Operaciones cambiarias (divisas)',/DIVISA|MESA DE CAMBIO|MONEDA EXTRANJERA|\bBCV\b/,'Comprobante de la operación cambiaria y tipo de cambio aplicado'],
+['I','Operaciones cambiarias (divisas)',/DIVISA|MESA DE CAMBIO|MONEDA EXTRANJERA|\bBCV\b/,'Comprobante de la operación cambiaria y tipo de cambio aplicado'],
+['E','Comisiones bancarias',/\bCOM\b|\bCOMIS|COMSERV|MTTO|MANT Y SERV|MANTENIMIENTO|EMISION DE ESTADO|EMIS EDO|\bSMS\b/,'Estado de cuenta / notas de débito del banco'],
+['E','Impuestos y tributos',/IGTF|SENIAT|IMPUESTO|ISLR|\bIVA\b|TESORERIA|ALCALDIA|MUNICIPAL|PATENTE|TIMBRE/,'Planillas de pago, declaraciones y comprobantes de retención'],
+['E','Seguridad social y parafiscales',/BANAVIH|FAOV|IVSS|INCES|PARAFISC|\bSSO\b|\bLPH\b/,'Planillas de pago y relación de nómina del período'],
+['E','Pago de sueldos y nómina',/NOMINA|SUELDO|SALARIO|QUINCENA|UTILIDADES|VACACIONES|LIQUIDACION|PRESTACIONES/,'Nómina firmada, recibos de pago y comprobantes de transferencia'],
+['E','Servicios públicos y telecomunicaciones',/MOVISTAR|DIGITEL|CANTV|\bINTER\b|CORPOELEC|HIDRO|MULTIPAGOS|RECAUDACION|NETUNO|SIMPLE ?TV|ELECTRIC|\bAGUA\b/,'Facturas o recibos del servicio a nombre de la empresa'],
+['E','Retiros en efectivo',/RETIRO|CAJERO|\bATM\b|EFECTIVO/,'Comprobante del destino del efectivo (alto riesgo en fiscalización)'],
+['E','Cheques pagados',/CHEQUE|\bCHQ\b/,'Copia del cheque, factura y orden de pago'],
+['E','Domiciliaciones y débitos automáticos',/DOMICILIACION|DEBITO INMEDIATO|DEBITO AUTOM/,'Contrato o factura del servicio domiciliado'],
+['E','Pago de préstamos y financiamiento',/PRESTAMO|CUOTA|FINANCIAM|AMORTIZ|TARJETA DE CREDITO/,'Contrato de crédito, tabla de amortización y recibo del banco'],
+['E','Pago a proveedores (transferencias)',/TRANSCTAS|TRFOB|TRFMB|TRF DB|TRANSF.*(ENV|DEB)|TERCEROS|PROVEEDOR|PAGO A /,'Factura de compra, orden de pago y retenciones de IVA/ISLR'],
+['E','Pagos por Pago Móvil',/PAGO ?MOVIL|\bC2P\b|PAGOMOV/,'Factura de compra o comprobante del gasto; identificar beneficiario'],
+['I','Aportes y préstamos de socios',/SOCIO|ACCIONISTA|APORTE/,'Acta o contrato de préstamo/aporte, comprobante del socio y registro contable (cuenta por pagar al socio)'],
+['I','Préstamos bancarios y financiamiento recibido',/PRESTAMO|DESEMBOLSO|CREDITO OTORGADO|FINANCIAMIENTO/,'Contrato de préstamo, tabla de amortización y comprobante de desembolso'],
+['I','Cobros Cashea (financiamiento en cuotas)',/CASHEA/,'Facturas de venta, reporte de liquidación de Cashea y notas de débito por diferencial cambiario'],
+['I','Ventas por punto de venta (POS)',/PUNTO DE VENTA|\bPOS\b|\bLOTE\b|\bTDD\b|\bTDC\b|ADQUIRENCIA|MERCHANT|CREDICARD|VENTAS? TARJETA/,'Cierre de lote del POS, facturas de venta y Libro de Ventas'],
+['I','Cobros por Pago Móvil',/PAGO ?MOVIL|\bC2P\b|PAGOMOV/,'Facturas de venta / Libro de Ventas y control de cobros'],
+['I','Transferencias recibidas de clientes',/TRF CR|TRFMB|TRANSF.*(REC|CR)|CREDITO INM|ABONO/,'Facturas de venta, nota de entrega y Libro de Ventas'],
+['I','Depósitos en efectivo o cheque',/DEPOSITO|\bDEP\b|REMESA/,'Planilla de depósito, cierre de caja y facturas de venta'],
+['I','Intereses y rendimientos',/INTERES|RENDIM/,'Estado de cuenta; verificar tratamiento en ISLR'],
+['I','Reversos y devoluciones',/REVERSO|DEVOLUCION|ANULACION/,'Operación original reversada y nota de crédito']];
+const sup={};R.forEach(r=>sup[r[1]]=r[3]);
+let tx=[],loaded=new Set(),filt=null;const rates={};
+const log=m=>$('#log').innerHTML=m;
+function cls(t){if(t.bk==='BNC Cashea'&&t.a>0)return'Cobros Cashea (financiamiento en cuotas)';const T=t.a>0?'I':'E',D=t.d.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+ for(const[k,c,re]of R)if(k===T&&re.test(D))return c;
+ const w=D.replace(/[^A-Z ]/g,' ').split(/\s+/).filter(x=>x.length>2).slice(0,3).join(' ')||'SIN DESCRIPCION';
+ return(T==='I'?'Otros ingresos: ':'Otros egresos: ')+w}
+function num(v){if(typeof v==='number')return v;if(v==null||v==='')return null;let s=String(v).trim(),ng=/^\(.*\)$|^-|-$/.test(s);s=s.replace(/[^\d.,]/g,'');if(!s)return null;
+ if(s.includes(',')&&s.includes('.'))s=s.lastIndexOf(',')>s.lastIndexOf('.')?s.replace(/\./g,'').replace(',','.'):s.replace(/,/g,'');
+ else if(s.includes(','))s=/,\d{1,2}$/.test(s)&&s.split(',').length==2?s.replace(',','.'):s.replace(/,/g,'');
+ else if((s.match(/\./g)||[]).length>1)s=s.replace(/\./g,'');
+ const n=parseFloat(s);return isNaN(n)?null:ng?-n:n}
+function iso(v){let d;if(typeof v==='number'&&v>20000)d=new Date(Math.round((v-25569)*864e5));else{const m=String(v||'').match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);if(!m)return null;let y=+m[3];if(y<100)y+=2000;d=new Date(Date.UTC(y,m[2]-1,+m[1]))}
+ return isNaN(d)?null:d.toISOString().slice(0,10)}
+function fromRates(rows){const hi=rows.findIndex(r=>r.some(c=>/fecha/i.test(c))&&r.some(c=>/venta|ask/i.test(c))&&!r.some(c=>/descrip|concepto/i.test(c)));if(hi<0)return[];
+ const h=rows[hi].map(c=>String(c).toLowerCase()),v=h.findIndex(x=>/venta|ask/.test(x)),f=h.findIndex(x=>/fecha/.test(x));
+ return rows.slice(hi+1).map(r=>[iso(r[f]),num(r[v])]).filter(x=>x[0]&&x[1]>0)}
+function fromRows(rows){const hi=rows.findIndex(r=>r.some(c=>/fecha/i.test(c))&&r.some(c=>/descrip|concepto|detalle/i.test(c)));if(hi<0)return[];
+ const h=rows[hi].map(c=>String(c||'').toLowerCase()),ix=re=>h.findIndex(x=>re.test(x));
+ const c={f:ix(/fecha/),d:ix(/descrip|concepto|detalle/),r:ix(/ref/),m:ix(/^monto|importe/),h:ix(/haber|credito|crédito|abono|ingreso/),e:ix(/debe|debito|débito|cargo|egreso/),s:ix(/saldo|balance/)},o=[];
+ for(const r of rows.slice(hi+1)){const f=iso(r[c.f]);if(!f)continue;let a;
+  if(c.m>=0)a=num(r[c.m]);else{const hv=num(r[c.h]),ev=num(r[c.e]);a=(hv?Math.abs(hv):0)-(ev?Math.abs(ev):0)}
+  if(!a)continue;o.push({f,d:String(r[c.d]??'').trim(),r:r[c.r]??'',a:Math.round(a*100)/100,s:c.s>=0?num(r[c.s]):null})}
+ return o}
+async function fromPdf(buf){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+ const pdf=await pdfjsLib.getDocument({data:buf}).promise,L=[];
+ for(let p=1;p<=pdf.numPages;p++){const t=await(await pdf.getPage(p)).getTextContent(),m={};t.items.forEach(i=>{const y=Math.round(i.transform[5]/3);(m[y]=m[y]||[]).push(i)});
+  Object.keys(m).map(Number).sort((a,b)=>b-a).forEach(y=>L.push(m[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(' ')))}
+ const o=[];o.hint=L.slice(0,25).join(' ');let prev=null;
+ for(const l of L){const m=l.match(/^\s*(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})\s+(.*)$/);if(!m)continue;const f=iso(m[1]);if(!f)continue;
+  const ns=[...m[2].matchAll(/-?\d{1,3}(?:[.,]\d{3})*[.,]\d{2}-?/g)];if(!ns.length)continue;
+  let a=num(ns.length>1?ns[ns.length-2][0]:ns[0][0]),s=ns.length>1?num(ns[ns.length-1][0]):null;
+  if(s!=null&&prev!=null){const d=Math.round((s-prev)*100)/100;if(Math.abs(Math.abs(d)-Math.abs(a))<.02)a=d}
+  if(s!=null)prev=s;const d=m[2].slice(0,ns[0].index).trim(),rf=(d.match(/\b\d{5,}\b/)||[''])[0];
+  o.push({f,d:d.replace(rf,'').trim()||d,r:rf,a:Math.round(a*100)/100,s})}
+ return o}
+async function add(files){const msgs=[],emp=$('#emp').value||emps[0];
+ for(const f of files){if(loaded.has(emp+f.name+f.size)){msgs.push(f.name+': ya estaba cargado');continue}
+  try{const b=await f.arrayBuffer();let rows,hint='';
+   if(/\.pdf$/i.test(f.name)){rows=await fromPdf(b);hint=rows.hint||''}
+   else{const wb=XLSX.read(b,{type:'array'}),rt=wb.SheetNames.flatMap(n=>fromRates(XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:''})));if(rt.length){rt.forEach(([d,v])=>rates[d]=v);loaded.add(emp+f.name+f.size);msgs.push(`${f.name}: ${rt.length} tasas BCV cargadas (columna VENTA); se usan en la hoja Dif. Cambiario`);continue}hint=JSON.stringify(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1}).slice(0,6));rows=wb.SheetNames.flatMap(n=>fromRows(XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:''})))}
+   const bk=$('#bk').value||(detBk(f.name)!=='Otro banco'?detBk(f.name):detBk(hint));rows.forEach(r=>{r.src=f.name;r.emp=emp;r.bk=bk;r.cat=cls(r);tx.push(r)});loaded.add(emp+f.name+f.size);
+   msgs.push(`${f.name} → ${emp} · ${bk}: ${rows.length} operaciones${rows.length?'':' (no se reconoció el formato; revisa que tenga columnas Fecha y Descripción)'}${/\.pdf$/i.test(f.name)?' · PDF: lectura aproximada, verifica contra el original':''}`)}
+  catch(e){msgs.push(f.name+': error al leer ('+(e.message||e)+')')}}
+ tx.sort((a,b)=>a.f<b.f?-1:a.f>b.f?1:0);pair();log(msgs.map(esc).join('<br>'));init()}
+const BKS=[['BNC Cashea',/cashea/],['Banesco',/banesco/],['Mercantil',/mercantil/],['BNC',/\bbnc\b|nacional de cr[eé]dito/],['Banco de Venezuela',/banco de venezuela|\bbdv\b/],['Provincial (BBVA)',/provincial|bbva/],['Bancamiga',/bancamiga/],['Banplus',/banplus/],['Banco Plaza',/\bplaza\b/],['Bicentenario',/bicentenario/],['Exterior',/banco exterior|\bexterior\b/],['Banco del Tesoro',/banco del tesoro|\btesoro\b/],['BFC (Fondo Común)',/fondo com[uú]n|\bbfc\b/],['100% Banco',/100% ?banco/],['Sofitasa',/sofitasa/],['Venezolano de Crédito',/venezolano de cr/],['Banco Caroní',/caron[ií]/],['Banco Activo',/banco activo/],['Del Sur',/del sur/],['Bancrecer',/bancrecer/]];
+const detBk=s=>{s=String(s).toLowerCase();const b=BKS.find(x=>x[1].test(s));return b?b[0]:'Otro banco'};
+const PC='Transferencias entre cuentas propias (por verificar)';sup[PC]='Conciliar con el estado de cuenta de la otra cuenta: el egreso y el ingreso deben coincidir';
+function pair(){const g=t=>!t.man&&/^(Otros |Pagos por Pago|Cobros por Pago|Transferencias recibidas|Pago a proveedores)/.test(t.cat),u=new Set(),I=tx.filter(t=>t.a>0&&g(t));
+ tx.filter(t=>t.a<0&&g(t)).forEach(e=>{const m=I.find(i=>!u.has(i)&&i.emp===e.emp&&i.bk!==e.bk&&Math.abs(i.a+e.a)<.02&&Math.abs(Date.parse(i.f)-Date.parse(e.f))<=1728e5);if(m){u.add(m);e.cat=m.cat=PC}})}
+const meses=()=>[...new Set(tx.map(t=>t.f.slice(0,7)))].sort(),mn=m=>{const[y,mm]=m.split('-');return['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][+mm]+' '+y};
+function init(){if(!tx.length)return;$('#app').hidden=false;const cur=$('#mes').value,ce=$('#fe').value,cb=$('#fb').value,U=k=>[...new Set(tx.map(t=>t[k]))].sort();$('#fe').innerHTML='<option value="">Todas las empresas</option>'+U('emp').map(e=>`<option>${esc(e)}</option>`).join('');$('#fb').innerHTML='<option value="">Todos los bancos</option>'+U('bk').map(e=>`<option>${esc(e)}</option>`).join('');$('#fe').value=U('emp').includes(ce)?ce:'';$('#fb').value=U('bk').includes(cb)?cb:'';
+ $('#mes').innerHTML='<option value="">Todos los meses</option>'+meses().map(m=>`<option value="${m}">${mn(m)}</option>`).join('');$('#mes').value=meses().includes(cur)?cur:'';render()}
+function render(){const m=$('#mes').value,fe=$('#fe').value,fb=$('#fb').value,V=tx.map((t,i)=>({...t,i})).filter(t=>(!m||t.f.startsWith(m))&&(!fe||t.emp===fe)&&(!fb||t.bk===fb));
+ const sum=T=>{const g={};V.filter(t=>(t.a>0)==(T=='I')).forEach(t=>{(g[t.cat]=g[t.cat]||{n:0,s:0}).n++;g[t.cat].s+=t.a});return Object.entries(g).sort((a,b)=>Math.abs(b[1].s)-Math.abs(a[1].s))};
+ const I=sum('I'),E=sum('E'),tI=I.reduce((s,x)=>s+x[1].s,0),tE=E.reduce((s,x)=>s+x[1].s,0),nw=V.filter(t=>t.cat.startsWith('Otros ')).length;
+ $('#kp').innerHTML=[['Ingresos',fmt(tI),'i'],['Egresos',fmt(tE),'e'],['Neto del período',fmt(tI+tE),''],['Operaciones',V.length,''],['Por revisar («Otros»)',nw,'']].map(k=>`<div class="k"><span>${k[0]}</span><b class="${k[2]}">${k[1]}</b></div>`).join('');
+ const gm={};V.forEach(t=>{const x=gm[t.f.slice(0,7)]=gm[t.f.slice(0,7)]||{i:0,e:0};if(t.a>0)x.i+=t.a;else x.e-=t.a});
+ $('#im').innerHTML=`<table><tr><th>Mes</th><th class='n'>Ingresos Bs</th><th class='n'>Egresos Bs</th><th class='n'>Ingresos − Egresos</th><th>Lectura</th></tr>`+Object.keys(gm).sort().map(k=>{const x=gm[k],d=x.i-x.e;return`<tr><td>${mn(k)}</td><td class='n i'>${fmt(x.i)}</td><td class='n e'>${fmt(x.e)}</td><td class='n ${d<0?'e':'i'}'>${fmt(d)}</td><td>${d>0?'Ingresó más de lo que se gastó':d<0?'Se gastó más de lo que ingresó':'Ingresos = egresos'}</td></tr>`}).join('')+`</table>`;
+ const gb={};V.forEach(t=>{const k=t.emp+'|'+t.bk,x=gb[k]=gb[k]||{e:t.emp,b:t.bk,n:0,i:0,g:0,s:null};x.n++;if(t.a>0)x.i+=t.a;else x.g+=t.a;if(t.s!=null)x.s=t.s});
+ $('#eb').innerHTML=`<table><tr><th>Empresa</th><th>Banco</th><th class='n'>Ops.</th><th class='n'>Ingresos</th><th class='n'>Egresos</th><th class='n'>Neto</th><th class='n'>Saldo final (banco)</th></tr>`+Object.values(gb).sort((a,b)=>a.e.localeCompare(b.e)||a.b.localeCompare(b.b)).map(x=>`<tr><td>${esc(x.e)}</td><td>${esc(x.b)}</td><td class='n'>${x.n}</td><td class='n i'>${fmt(x.i)}</td><td class='n e'>${fmt(x.g)}</td><td class='n'>${fmt(x.i+x.g)}</td><td class='n'>${x.s==null?'—':fmt(x.s)}</td></tr>`).join('')+`</table>`;
+ const tb=(rows,tot,cl)=>`<table><tr><th>Categoría</th><th class="n">Ops.</th><th class="n">Total Bs.</th><th class="n">%</th><th>Soporte a ubicar</th></tr>${rows.map(([c,x])=>`<tr class="c" data-c="${esc(c)}"><td>${esc(c)}${c.startsWith('Otros ')?'<span class="tag">nueva</span>':''}</td><td class="n">${x.n}</td><td class="n ${cl}">${fmt(x.s)}</td><td class="n">${tot?fmt(x.s/tot*100):'0,00'}%</td><td class="sm">${esc(sup[c]||SUP0)}</td></tr>`).join('')}<tr class="t"><td>Total</td><td class="n">${rows.reduce((s,x)=>s+x[1].n,0)}</td><td class="n ${cl}">${fmt(tot)}</td><td></td><td></td></tr></table>`;
+ $('#ti').innerHTML=tb(I,tI,'i');$('#te').innerHTML=tb(E,tE,'e');
+ document.querySelectorAll('tr.c').forEach(r=>r.onclick=()=>{filt=r.dataset.c;render();$('#td').scrollIntoView({behavior:'smooth'})});
+ const D=V.filter(t=>!filt||t.cat===filt);$('#fl').textContent=filt?'Filtro: '+filt:'';$('#nf').hidden=!filt;
+ $('#dl').innerHTML=[...new Set(tx.map(t=>t.cat))].sort().map(c=>`<option value="${esc(c)}">`).join('');
+ const gr={};D.forEach(t=>{const k=(t.a>0?'I|':'E|')+t.cat;(gr[k]=gr[k]||[]).push(t)});
+ $('#td').innerHTML=`<tr><th>Fecha</th><th>Descripción</th><th>Ref.</th><th class="n">Ingreso</th><th class="n">Egreso</th><th>Categoría</th><th>Empresa · Banco</th></tr>`+Object.entries(gr).map(([k,L])=>({T:k[0],c:k.slice(2),L,s:L.reduce((x,t)=>x+t.a,0)})).sort((a,b)=>(a.T<b.T?1:a.T>b.T?-1:0)||Math.abs(b.s)-Math.abs(a.s)).map(g=>`<tr class="gh"><td colspan="7"><b>${g.T=='I'?'Ingreso':'Egreso'} · ${esc(g.c)}</b> <span class="sm">${g.L.length} ops. · Soporte: ${esc(sup[g.c]||SUP0)}</span></td></tr>`+g.L.map(t=>`<tr><td class="n">${t.f.split('-').reverse().join('/')}</td><td>${esc(t.d)}</td><td>${esc(t.r)}</td><td class="n i">${t.a>0?fmt(t.a):''}</td><td class="n e">${t.a<0?fmt(t.a):''}</td><td><input class="cat" list="dl" value="${esc(t.cat)}" data-i="${t.i}"></td><td class="sm">${esc(t.emp)} · ${esc(t.bk)}</td></tr>`).join('')+`<tr class="t"><td colspan="3">Subtotal · monto a justificar</td><td class="n i">${g.s>0?fmt(g.s):''}</td><td class="n e">${g.s<0?fmt(g.s):''}</td><td>${esc(g.c)}</td><td></td></tr>`).join('');
+ document.querySelectorAll('input.cat').forEach(x=>x.onchange=()=>{const v=x.value.trim();if(v){const o=tx[+x.dataset.i];o.cat=v;o.man=1;render()}})}
+const scope=()=>tx.filter(t=>(!$('#fe').value||t.emp===$('#fe').value)&&(!$('#fb').value||t.bk===$('#fb').value));
+async function exportar(){const tx=scope();if(!tx.length){alert('No hay operaciones para exportar con ese filtro.');return}const dl=await claude.use('downloads').catch(()=>null);if(!dl){alert('La descarga no está disponible en esta vista. Abre el artefacto en claude.ai para exportar.');return}
+ const ms=meses(),col=n=>XLSX.utils.encode_col(n),ser=f=>Math.round(Date.parse(f)/864e5)+25569;
+ const det=[['Fecha','Descripción','Referencia','Ingreso (+)','Egreso (−)','Saldo','Tipo','Categoría','Mes (AAAAMM)','Archivo origen','Empresa','Banco']];
+ tx.forEach(t=>det.push([{t:'n',v:ser(t.f),z:'dd/mm/yyyy'},t.d,t.r,t.a>0?{t:'n',v:t.a,z:'#,##0.00'}:'',t.a<0?{t:'n',v:t.a,z:'#,##0.00;[Red]-#,##0.00'}:'',t.s==null?'':{t:'n',v:t.s,z:'#,##0.00'},t.a>0?'Ingreso':'Egreso',t.cat,{t:'n',v:Number(t.f.slice(0,4)+t.f.slice(5,7)),z:'0'},t.src,t.emp,t.bk]));
+ const wd=XLSX.utils.aoa_to_sheet(det);wd['!cols']=[12,46,16,16,16,16,10,38,10,30,22,18].map(w=>({wch:w}));wd['!autofilter']={ref:`A1:L${det.length}`};wd['!freeze']={xSplit:0,ySplit:1};
+ const rs=[[{v:'Resumen mensual por categoría — soporte para fiscalización SENIAT · '+($('#fe').value||'Todas las empresas')+($('#fb').value?' · '+$('#fb').value:''),t:'s'}],[]],n=tx.length+1;
+ for(const T of['I','E']){const cats=[...new Set(tx.filter(t=>(t.a>0)==(T=='I')).map(t=>t.cat))].sort(),dc=T=='I'?'D':'E',h=rs.length+1;
+  rs.push([T=='I'?'INGRESOS':'EGRESOS']);rs.push(['Categoría',...ms.map(mn),'Total','Soporte a ubicar']);
+  const f0=rs.length+1;ms.forEach(()=>0);
+  cats.forEach((c,k)=>{const r=f0+k,row=[c];ms.forEach((m,j)=>{const v=tx.filter(t=>t.cat===c&&t.f.startsWith(m)&&(t.a>0)==(T=='I')).reduce((s,t)=>s+t.a,0);
+    row.push({t:'n',f:`SUMIFS(Detalle!$${dc}$2:$${dc}$${n},Detalle!$H$2:$H$${n},$A${r},Detalle!$I$2:$I$${n},${m.replace('-','')})`,v:Math.round(v*100)/100,z:'#,##0.00;[Red]-#,##0.00;"-"'})});
+   const tv=tx.filter(t=>t.cat===c&&(t.a>0)==(T=='I')).reduce((s,t)=>s+t.a,0);
+   row.push({t:'n',f:`SUM(B${r}:${col(ms.length)}${r})`,v:Math.round(tv*100)/100,z:'#,##0.00;[Red]-#,##0.00;"-"'},sup[c]||SUP0);rs.push(row)});
+  const l=f0+cats.length-1,tr=['TOTAL '+(T=='I'?'INGRESOS':'EGRESOS')];
+  for(let j=1;j<=ms.length+1;j++){const cv=tx.filter(t=>(t.a>0)==(T=='I')&&(j>ms.length||t.f.startsWith(ms[j-1]))).reduce((s,t)=>s+t.a,0);tr.push({t:'n',f:`SUM(${col(j)}${f0}:${col(j)}${l})`,v:Math.round(cv*100)/100,z:'#,##0.00;[Red]-#,##0.00;"-"'})}
+  rs.push(tr,[])}
+ const ws=XLSX.utils.aoa_to_sheet(rs);ws['!cols']=[{wch:40},...ms.map(()=>({wch:16})),{wch:18},{wch:60}];
+ const z2='#,##0.00;[Red]-#,##0.00',gp=[['Detalle por categoría · montos a justificar ante el SENIAT'],['Marca «Sí» en la columna E cuando ubiques el soporte; el subtotal «Pendiente» se actualiza solo.'],[]];
+ for(const T of['I','E']){const cs={},tt=L=>L.reduce((s,t)=>s+t.a,0);tx.filter(t=>(t.a>0)==(T=='I')).forEach(t=>(cs[t.cat]=cs[t.cat]||[]).push(t));
+  gp.push([T=='I'?'INGRESOS':'EGRESOS'],['Fecha','Descripción','Referencia','Monto','Soporte ubicado (Sí/No)','N° factura / documento']);
+  Object.entries(cs).sort((a,b)=>Math.abs(tt(b[1]))-Math.abs(tt(a[1]))).forEach(([c,L])=>{gp.push(['▶ '+c+' — soporte: '+(sup[c]||SUP0)]);const a=gp.length+1,b=a+L.length-1,s=Math.round(tt(L)*100)/100;
+   L.forEach(t=>gp.push([{t:'n',v:ser(t.f),z:'dd/mm/yyyy'},t.d+' ['+t.bk+($('#fe').value?'':' · '+t.emp)+']',t.r,{t:'n',v:t.a,z:z2},'','']));
+   gp.push(['','Subtotal '+c,'',{t:'n',f:`SUBTOTAL(9,D${a}:D${b})`,v:s,z:z2},'Pendiente de justificar →',{t:'n',f:`SUMIFS(D${a}:D${b},E${a}:E${b},"<>Sí")`,v:s,z:z2}],[])});
+  gp.push([])}
+ const wg=XLSX.utils.aoa_to_sheet(gp);wg['!cols']=[12,46,16,16,26,26].map(w=>({wch:w}));
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Resumen');XLSX.utils.book_append_sheet(wb,wg,'Por categoría');XLSX.utils.book_append_sheet(wb,wd,'Detalle');
+ const bks=[...new Set(tx.map(t=>t.bk))].sort(),nb=bks.length,L=XLSX.utils.encode_col,rg=c=>`Detalle!$${c}$2:$${c}$${n}`,zz='#,##0.00;[Red]-#,##0.00;"-"',isT=c=>/^Transferencias entre cuentas propias/.test(c);
+ const wk=[['Resumen de ingresos y egresos por mes, banco y categoría — soporte para fiscalización SENIAT'],['Cada cifra es una fórmula sobre la hoja Detalle. Las transferencias entre cuentas propias se muestran aparte y deben compensarse entre bancos (control al final de cada mes). Para que compensen, exporta con «Todos los bancos».'],[]];
+ const crow=(c,mk,T)=>{const r=wk.length+1;return[c,...bks.map(b=>({t:'n',z:zz,f:`SUMIFS(${rg(T=='I'?'D':'E')},${rg('H')},$A${r},${rg('I')},${mk},${rg('L')},"${b}")`})),{t:'n',z:zz,f:`SUM(B${r}:${L(nb)}${r})`},sup[c]||SUP0]};
+ const srow=(lab,a,b)=>[lab,...Array.from({length:nb+1},(_,j)=>({t:'n',z:zz,f:b<a?'0':`SUM(${L(j+1)}${a}:${L(j+1)}${b})`}))];
+ const frow=(lab,fn)=>[lab,...Array.from({length:nb+1},(_,j)=>({t:'n',z:zz,f:fn(L(j+1))}))];
+ ms.forEach(m=>{const mk=Number(m.replace('-','')),cats=T=>[...new Set(tx.filter(t=>t.f.startsWith(m)&&(t.a>0)==(T=='I')).map(t=>t.cat))].sort(),R={};
+  wk.push([mn(m).toUpperCase()],['Categoría',...bks,'Total','Soporte a ubicar']);
+  for(const T of['I','E']){const cc=cats(T),op=cc.filter(c=>!isT(c)),it=cc.filter(isT),nm=T=='I'?'ingresos':'egresos';
+   wk.push([nm.toUpperCase()]);let a=wk.length+1;op.forEach(c=>wk.push(crow(c,mk,T)));
+   R[T+'o']=wk.length+1;wk.push(srow('Total '+nm+' operativos (sin transferencias internas)',a,wk.length));
+   if(it.length){wk.push(['Transferencias entre cuentas propias (entre bancos)']);a=wk.length+1;it.forEach(c=>wk.push(crow(c,mk,T)));
+    R[T+'t']=wk.length+1;wk.push(srow('Total transferencias internas',a,wk.length));
+    wk.push(frow('Total '+nm+' con transferencias internas',c=>`${c}${R[T+'o']}+${c}${R[T+'t']}`))}}
+  wk.push(frow('RESULTADO OPERATIVO DEL MES (ingresos + egresos, sin transferencias internas)',c=>`${c}${R.Io}+${c}${R.Eo}`));
+  const ti=['It','Et'].filter(x=>R[x]).map(x=>R[x]),cr=frow('Control transferencias internas (ingresos + egresos): debe ser 0,00',c=>ti.length?ti.map(r=>c+r).join('+'):'0'),rr=wk.length+1;
+  cr.push({t:'str',v:'',f:`IF(ROUND(${L(nb+1)}${rr},2)=0,"✔ Compensan","✖ Revisar: transferencias sin contraparte")`});wk.push(cr,[])});
+ const wkb=XLSX.utils.aoa_to_sheet(wk);wkb['!cols']=[{wch:62},...bks.map(()=>({wch:18})),{wch:18},{wch:60}];
+ XLSX.utils.book_append_sheet(wb,wkb,'Resumen bancos');wb.SheetNames.unshift(wb.SheetNames.pop());wb.Workbook={CalcPr:{fullCalcOnLoad:true}};
+ const M=ms.length,mkf=m=>Number(m.replace('-','')),IN='"Transferencias entre cuentas propias*"',SALES=['Cobros por Pago Móvil','Transferencias recibidas de clientes','Depósitos en efectivo o cheque','Ventas por punto de venta (POS)','Cobros Cashea (financiamiento en cuotas)'],LOANS=['Préstamos bancarios y financiamiento recibido','Aportes y préstamos de socios'];
+ const q=[['Cuadro mensual en bolívares — ingresos y egresos bancarios y conciliación con las ventas declaradas al SENIAT'],['Los egresos se muestran como montos positivos. En la tabla 2 llena la columna «Ventas declaradas» con lo declarado en el mes (base + IVA, porque el banco recibe el IVA cobrado).'],[],['1. INGRESOS Y EGRESOS DEL MES EN BOLÍVARES'],['Mes','Ingresos Bs','Egresos Bs','Ingresos − Egresos','Lectura','Ingresos sin transferencias internas','Egresos sin transferencias internas','Resultado operativo']];
+ ms.forEach((m,i)=>{const r=6+i,k=mkf(m);q.push([mn(m),{t:'n',z:zz,f:`SUMIFS(${rg('D')},${rg('I')},${k})`},{t:'n',z:zz,f:`-SUMIFS(${rg('E')},${rg('I')},${k})`},{t:'n',z:zz,f:`B${r}-C${r}`},{t:'str',v:'',f:`IF(D${r}>0,"Ingresó más de lo que se gastó",IF(D${r}<0,"Se gastó más de lo que ingresó","Ingresos = egresos"))`},{t:'n',z:zz,f:`B${r}-SUMIFS(${rg('D')},${rg('H')},${IN},${rg('I')},${k})`},{t:'n',z:zz,f:`C${r}+SUMIFS(${rg('E')},${rg('H')},${IN},${rg('I')},${k})`},{t:'n',z:zz,f:`F${r}-G${r}`}])});
+ const sm=(c,a,b)=>({t:'n',z:zz,f:`SUM(${c}${a}:${c}${b})`});
+ q.push(['TOTAL DEL PERÍODO',sm('B',6,5+M),sm('C',6,5+M),sm('D',6,5+M),'',sm('F',6,5+M),sm('G',6,5+M),sm('H',6,5+M)],[],['2. CONCILIACIÓN: DEPÓSITOS BANCARIOS VS. VENTAS DECLARADAS AL SENIAT'],['Mes','Ingresos bancarios','Ventas declaradas SENIAT (llenar)','Diferencia a justificar (ingresos − declaradas)','Transferencias internas','Préstamos y aportes de socios','Otros ingresos que no son ventas','Ventas según banco','Ventas banco − declaradas','Lectura']);
+ const s2=q.length+1;
+ ms.forEach((m,i)=>{const r=q.length+1,k=mkf(m),sp=l=>`SUMPRODUCT(SUMIFS(${rg('D')},${rg('H')},${l},${rg('I')},${k}))`;q.push([mn(m),{t:'n',z:zz,f:`B${6+i}`},'',{t:'n',z:zz,f:`IF(ISNUMBER(C${r}),B${r}-C${r},"")`},{t:'n',z:zz,f:`SUMIFS(${rg('D')},${rg('H')},${IN},${rg('I')},${k})`},{t:'n',z:zz,f:sp('$L$15:$L$18')},{t:'n',z:zz,f:`B${r}-E${r}-F${r}-H${r}`},{t:'n',z:zz,f:sp('$L$5:$L$12')},{t:'n',z:zz,f:`IF(ISNUMBER(C${r}),H${r}-C${r},"")`},{t:'str',v:'',f:`IF(I${r}="","",IF(I${r}>0,"Las ventas depositadas superan lo declarado: justificar",IF(I${r}<0,"Declaró más ventas de lo depositado (crédito, efectivo u otro)","Cuadra")))`}])});
+ q.push(['TOTAL DEL PERÍODO',...'BCDEFGHI'.split('').map(c=>sm(c,s2,s2+M-1))],[],['3. INGRESOS QUE NO SON VENTAS — DETALLE POR CATEGORÍA (montos a justificar con soporte)'],['Categoría',...ms.map(mn),'Total','Soporte a ubicar']);
+ const nv=[...new Set(tx.filter(t=>t.a>0&&!SALES.includes(t.cat)).map(t=>t.cat))].sort(),s3=q.length+1;
+ nv.forEach(c=>{const r=q.length+1;q.push([c,...ms.map(m=>({t:'n',z:zz,f:`SUMIFS(${rg('D')},${rg('H')},$A${r},${rg('I')},${mkf(m)})`})),{t:'n',z:zz,f:`SUM(B${r}:${L(M)}${r})`},sup[c]||SUP0])});
+ q.push(['TOTAL A JUSTIFICAR',...Array.from({length:M+1},(_,j)=>nv.length?sm(L(j+1),s3,s3+nv.length-1):0)]);
+ const wq=XLSX.utils.aoa_to_sheet(q);
+ XLSX.utils.sheet_add_aoa(wq,[['Categorías que cuentan como VENTAS (editable)'],...SALES.map(x=>[x]),...[1,2,3].map(()=>['(libre)']),[],['Categorías de PRÉSTAMOS Y APORTES (editable)'],...LOANS.map(x=>[x]),...[1,2].map(()=>['(libre)'])],{origin:'L4'});
+ wq['!cols']=[{wch:48},...Array.from({length:9},()=>({wch:22})),{wch:3},{wch:48}];
+ XLSX.utils.book_append_sheet(wb,wq,'Cuadro mensual');wb.SheetNames.unshift(wb.SheetNames.pop());
+ const cs=tx.filter(t=>t.a>0&&t.bk==='BNC Cashea');
+ if(cs.length){const z='#,##0.00;[Red]-#,##0.00',z4='#,##0.0000',TS="'Tasas BCV'!",DC="'Dif. Cambiario'!",TA=TS+'$A$4:$A$2000',TB=TS+'$B$4:$B$2000',tasa=c=>`IFERROR(INDEX(${TB},MATCH(${c},${TA},1)),"")`,e=5+cs.length;
+ const wt=XLSX.utils.aoa_to_sheet([['Tasas BCV (Bs por USD) — ordenadas de la fecha menor a la mayor'],['Pega o agrega las tasas debajo; cada fórmula toma la última tasa con fecha igual o anterior a la consultada.'],['Fecha','Tasa BCV'],...Object.entries(rates).sort().map(([d,v])=>[{t:'n',v:ser(d),z:'dd/mm/yyyy'},{t:'n',v,z:z4}])]);wt['!cols']=[{wch:14},{wch:14}];
+ const wc=[['Diferencial cambiario — cobros BNC Cashea'],['Llena las columnas E y F con la factura a la que corresponde cada cobro; el resto se calcula con la hoja «Tasas BCV».'],['Alícuota IVA',{t:'n',v:.16,z:'0%'}],[],['Fecha cobro','Descripción','Referencia','Monto cobrado Bs','N° factura (llenar)','Fecha factura (llenar)','Tasa BCV fecha factura','Tasa BCV fecha cobro','Equivalente USD cobrado','Bs a valor de la factura','Diferencial cambiario Bs','IVA s/ diferencial Bs']];
+ cs.forEach((t,i)=>{const r=6+i;wc.push([{t:'n',v:ser(t.f),z:'dd/mm/yyyy'},t.d,t.r,{t:'n',v:t.a,z},'','',{t:'n',z:z4,f:`IF(F${r}="","",${tasa('F'+r)})`},{t:'n',z:z4,f:tasa('A'+r)},{t:'n',z,f:`IF(H${r}="","",D${r}/H${r})`},{t:'n',z,f:`IF(OR(G${r}="",I${r}=""),"",I${r}*G${r})`},{t:'n',z,f:`IF(J${r}="","",D${r}-J${r})`},{t:'n',z,f:`IF(K${r}="","",K${r}*$B$3)`}])});
+ wc.push(['','TOTALES','',{t:'n',z,f:`SUM(D6:D${e})`},'','','','','','',{t:'n',z,f:`SUM(K6:K${e})`},{t:'n',z,f:`SUM(L6:L${e})`}]);
+ const wcs=XLSX.utils.aoa_to_sheet(wc);wcs['!cols']=[12,40,16,18,18,18,16,16,18,18,18,18].map(w=>({wch:w}));
+ const wf=[['Resumen por factura — base de la nota de débito por diferencial cambiario'],['Llena A, B y C (una fila por factura). El resto se calcula con los cobros de la hoja «Dif. Cambiario».'],[],['N° factura (llenar)','Fecha factura (llenar)','Monto factura Bs (llenar)','Tasa BCV fecha factura','USD de la factura','Cobrado Bs','Cobrado USD (equiv.)','Diferencial cambiario Bs','IVA s/ diferencial Bs','Total nota de débito Bs','Saldo por cobrar USD']];
+ for(let r=5;r<45;r++){const k=c=>`IF($A${r}="","",SUMIFS(${DC}$${c}$6:$${c}$${e},${DC}$E$6:$E$${e},$A${r}))`;
+  wf.push(['','','',{t:'n',z:z4,f:`IF(B${r}="","",${tasa('B'+r)})`},{t:'n',z,f:`IF(OR(C${r}="",D${r}=""),"",C${r}/D${r})`},{t:'n',z,f:k('D')},{t:'n',z,f:k('I')},{t:'n',z,f:k('K')},{t:'n',z,f:`IF($A${r}="","",H${r}*${DC}$B$3)`},{t:'n',z,f:`IF($A${r}="","",H${r}+I${r})`},{t:'n',z,f:`IF(OR($A${r}="",E${r}=""),"",E${r}-G${r})`}])}
+ wf.push(['','','TOTALES','','',...'FGHIJ'.split('').map(c=>({t:'n',z,f:`SUM(${c}5:${c}44)`}))]);
+ const wfs=XLSX.utils.aoa_to_sheet(wf);wfs['!cols']=[16,16,18,16,16,18,18,18,18,20,18].map(w=>({wch:w}));
+ XLSX.utils.book_append_sheet(wb,wcs,'Dif. Cambiario');XLSX.utils.book_append_sheet(wb,wfs,'Dif. por factura');XLSX.utils.book_append_sheet(wb,wt,'Tasas BCV');wb.Workbook={CalcPr:{fullCalcOnLoad:true}}}
+ try{await dl.save({filename:'Clasificacion_'+($('#fe').value||'Todas_las_empresas').replace(/[^\w\-]+/g,'_')+'.xlsx',data:new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})])})}catch(e){if(e.code!=='declined')alert('No se pudo guardar: '+(e.message||e.code))}}
+const dz=$('#drop'),fi=$('#fi');dz.onclick=()=>fi.click();fi.onchange=()=>{add([...fi.files]);fi.value=''};
+dz.ondragover=e=>{e.preventDefault();dz.classList.add('on')};dz.ondragleave=()=>dz.classList.remove('on');dz.ondrop=e=>{e.preventDefault();dz.classList.remove('on');add([...e.dataTransfer.files])};
+$('#mes').onchange=$('#fe').onchange=$('#fb').onchange=render;
+$('#bk').innerHTML='<option value="">Detectar automáticamente</option>'+BKS.map(b=>`<option>${b[0]}</option>`).join('')+'<option>Otro banco</option>';
+let emps=[];try{emps=JSON.parse(localStorage.getItem('emps')||'[]')}catch(e){}if(!emps.length)emps=['Mi empresa'];
+const fillE=s=>{$('#emp').innerHTML=emps.map(e=>`<option>${esc(e)}</option>`).join('');if(s)$('#emp').value=s;try{localStorage.setItem('emps',JSON.stringify(emps))}catch(e){}};fillE();
+$('#ae').onclick=()=>{const v=$('#ne').value.trim();if(!v)return;if(!emps.includes(v))emps.push(v);fillE(v);$('#ne').value=''};$('#nf').onclick=()=>{filt=null;render()};$('#ex').onclick=exportar;
+$('#cl').onclick=()=>{tx=[];loaded.clear();filt=null;$('#app').hidden=true;log('')};
+</script></body></html>

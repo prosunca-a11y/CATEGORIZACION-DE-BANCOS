@@ -1,0 +1,24 @@
+﻿Cuadro mensual en bolívares — ingresos y egresos bancarios y conciliación con las ventas declaradas al SENIAT,,,,,,,,,,,
+"Los egresos se muestran como montos positivos. En la tabla 2 llena la columna «Ventas declaradas» con lo declarado en el mes (base + IVA, porque el banco recibe el IVA cobrado).",,,,,,,,,,,
+,,,,,,,,,,,
+1. INGRESOS Y EGRESOS DEL MES EN BOLÍVARES,,,,,,,,,,,Categorías que cuentan como VENTAS (editable)
+Mes,Ingresos Bs,Egresos Bs,Ingresos − Egresos,Lectura,Ingresos sin transferencias internas,Egresos sin transferencias internas,Resultado operativo,,,,Cobros por Pago Móvil
+Julio 2026,"8,643,710.31","8,448,057.15","195,653.16",Ingresó más de lo que se gastó,"5,084,110.31","4,888,457.15","195,653.16",,,,Transferencias recibidas de clientes
+Agosto 2026,"10,788,580.51","10,578,503.47","210,077.04",Ingresó más de lo que se gastó,"5,811,780.51","5,601,703.47","210,077.04",,,,Depósitos en efectivo o cheque
+TOTAL DEL PERÍODO,"19,432,290.82","19,026,560.62","405,730.20",,"10,895,890.82","10,490,160.62","405,730.20",,,,Ventas por punto de venta (POS)
+,,,,,,,,,,,Cobros Cashea (financiamiento en cuotas)
+2. CONCILIACIÓN: DEPÓSITOS BANCARIOS VS. VENTAS DECLARADAS AL SENIAT,,,,,,,,,,,(libre)
+Mes,Ingresos bancarios,Ventas declaradas SENIAT (llenar),Diferencia a justificar (ingresos − declaradas),Transferencias internas,Préstamos y aportes de socios,Otros ingresos que no son ventas,Ventas según banco,Ventas banco − declaradas,Lectura,,(libre)
+Julio 2026,"8,643,710.31",,,"3,559,600.00",-,"501,096.22","4,583,014.09",,,,(libre)
+Agosto 2026,"10,788,580.51",,,"4,976,800.00",-,"88,673.21","5,723,107.30",,,,
+TOTAL DEL PERÍODO,"19,432,290.82",-,-,"8,536,400.00",-,"589,769.43","10,306,121.39",-,,,Categorías de PRÉSTAMOS Y APORTES (editable)
+,,,,,,,,,,,Préstamos bancarios y financiamiento recibido
+3. INGRESOS QUE NO SON VENTAS — DETALLE POR CATEGORÍA (montos a justificar con soporte),,,,,,,,,,,Aportes y préstamos de socios
+Categoría,Julio 2026,Agosto 2026,Total,Soporte a ubicar,,,,,,,(libre)
+Otros ingresos: PAGO PROVE EDI,"122,278.84",-,"122,278.84","Identificar el soporte (contrato, factura u orden de pago) que respalde la operación",,,,,,,(libre)
+Otros ingresos: PPV,-,"88,673.21","88,673.21","Identificar el soporte (contrato, factura u orden de pago) que respalde la operación",,,,,,,
+Otros ingresos: TDB CAPIT,"279,893.56",-,"279,893.56","Identificar el soporte (contrato, factura u orden de pago) que respalde la operación",,,,,,,
+Otros ingresos: TMD,"50,923.82",-,"50,923.82","Identificar el soporte (contrato, factura u orden de pago) que respalde la operación",,,,,,,
+Reversos y devoluciones,"48,000.00",-,"48,000.00",Operación original reversada y nota de crédito,,,,,,,
+Transferencias entre cuentas propias (por verificar),"3,559,600.00","4,976,800.00","8,536,400.00",Conciliar con el estado de cuenta de la otra cuenta: el egreso y el ingreso deben coincidir,,,,,,,
+TOTAL A JUSTIFICAR,"4,060,696.22","5,065,473.21","9,126,169.43",,,,,,,,
